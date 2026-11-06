@@ -8,7 +8,6 @@
 #include "wxExtensions.hpp"
 #include "Plater.hpp"
 #include "MainFrame.hpp"
-#include "WebViewDialog.hpp"
 #include "PartPlate.hpp"
 
 #include <boost/log/trivial.hpp>

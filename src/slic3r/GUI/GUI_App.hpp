@@ -11,7 +11,7 @@
 #include "slic3r/GUI/DeviceManager.hpp"
 #include "slic3r/GUI/UserNotification.hpp"
 #include "slic3r/Utils/NetworkAgent.hpp"
-#include "slic3r/GUI/WebViewDialog.hpp"
+#include <wx/webview.h>
 #include "slic3r/GUI/WebUserLoginDialog.hpp"
 #include "slic3r/Utils/GatewayAccount.hpp"
 #include "slic3r/GUI/WebDeviceDialog.hpp"
@@ -634,7 +634,6 @@ private:
     std::shared_ptr<Gateway::GatewayService> gateway_service() const { return m_gateway_service; }
     bool            gateway_device_connected() const;
 
-    void            switch_staff_pick(bool on);
     bool            check_privacy_update();
     
     void            check_track_enable();
@@ -741,11 +740,9 @@ public:
     bool            is_running_on_arm64() { return m_is_arm64; }
 #endif
 
-    void            load_url(wxString url);
     void            open_mall_page_dialog();
     void            open_publish_page_dialog();
     void            remove_mall_system_dialog();
-    void            run_script(wxString js);
     bool            is_adding_script_handler() { return m_adding_script_handler; }
     void            set_adding_script_handler(bool status) { m_adding_script_handler = status; }
 
@@ -899,7 +896,6 @@ public:
     {
     private:
         std::unordered_map<wxWebView*, wxString> webviews;
-        std::unordered_map<WebViewPanel*, wxString> webview_panels;
         std::unordered_map<PrinterWebView*, std::pair<wxString, wxString>> printerviews;
         GUI_App*                                                           app;
 
@@ -918,17 +914,6 @@ public:
             webviews[view] = url;
         }
 
-        void remove_panel(WebViewPanel* panel)
-        {
-            if (webview_panels.count(panel)) {
-                webview_panels.erase(panel);
-            }
-        }
-
-        void add_webview_panel(WebViewPanel* panel, const wxString& url) {
-            webview_panels[panel] = url;
-        }
-
         void add_printer_view(PrinterWebView* prview, const wxString& url, const wxString& key)
         {
             printerviews[prview] = std::make_pair(url, key);
@@ -945,12 +930,6 @@ public:
             for (const auto& view : webviews) {
                 auto ptr = view.first;
                 ptr->LoadURL(view.second);
-            }
-
-            for (const auto& panel : webview_panels) {
-                auto ptr = panel.first;
-                wxString url = panel.second;
-                ptr->load_url(url);
             }
 
             for (const auto& prview : printerviews) {

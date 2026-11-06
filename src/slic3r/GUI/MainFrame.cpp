@@ -41,7 +41,6 @@
 #include "I18N.hpp"
 #include "GLCanvas3D.hpp"
 #include "Plater.hpp"
-#include "WebViewDialog.hpp"
 #include "../Utils/Process.hpp"
 #include "../Utils/GatewayService.hpp"
 #include "format.hpp"
@@ -102,7 +101,6 @@ wxDEFINE_EVENT(EVT_NETWORK_TEST_LOG_UPDATE, wxCommandEvent);
 
 // BBS: backup
 wxDEFINE_EVENT(EVT_BACKUP_POST, wxCommandEvent);
-wxDEFINE_EVENT(EVT_LOAD_URL, wxCommandEvent);
 wxDEFINE_EVENT(EVT_LOAD_PRINTER_URL, LoadPrinterViewEvent);
 
 /**
@@ -962,7 +960,7 @@ void MainFrame::update_layout()
 
     // From the very beginning the Print settings should be selected
     //m_last_selected_tab = m_layout == ESettingsLayout::Dlg ? 0 : 1;
-    m_last_selected_tab = 1;
+    m_last_selected_tab = tp3DEditor;
 
     // Set new settings
     switch (m_layout)
@@ -1210,13 +1208,7 @@ void MainFrame::init_tabpanel() {
         static int prev_monitored_tab = -1;
 
         // Send "inactive" to previous tab if leaving a monitored tab
-        if (prev_monitored_tab == tpHome && sel != tpHome) {
-            // Leaving homepage
-            if (m_webview) {
-                wxWebView* home_webview = m_webview->getWebView();
-                wxGetApp().page_state_notify_webview(home_webview, "inactive");
-            }
-        } else if (prev_monitored_tab == tpMonitor && sel != tpMonitor) {
+        if (prev_monitored_tab == tpMonitor && sel != tpMonitor) {
             // Leaving device page (PrinterWebView)
             if (m_printer_view) {
                 wxWebView* printer_webview = m_printer_view->get_browser();
@@ -1225,14 +1217,7 @@ void MainFrame::init_tabpanel() {
         }
 
         // Send "active" to current tab if entering a monitored tab
-        if (sel == tpHome) {
-            // Entering homepage
-            if (m_webview) {
-                wxWebView* home_webview = m_webview->getWebView();
-                wxGetApp().page_state_notify_webview(home_webview, "active");
-            }
-            prev_monitored_tab = tpHome;
-        } else if (sel == tpMonitor) {
+        if (sel == tpMonitor) {
             // Entering device page (PrinterWebView)
             if (m_printer_view) {
                 wxWebView* printer_webview = m_printer_view->get_browser();
@@ -1241,7 +1226,7 @@ void MainFrame::init_tabpanel() {
             prev_monitored_tab = tpMonitor;
         } else {
             // Update prev_monitored_tab only when leaving a monitored tab
-            if (prev_monitored_tab != tpHome && prev_monitored_tab != tpMonitor) {
+            if (prev_monitored_tab != tpMonitor) {
                 prev_monitored_tab = -1;
             }
         }
@@ -1250,9 +1235,6 @@ void MainFrame::init_tabpanel() {
             panel->SetFocus();
 
         /*switch (sel) {
-        case TabPosition::tpHome:
-            show_option(false);
-            break;
         case TabPosition::tp3DEditor:
             show_option(true);
             break;
@@ -1269,13 +1251,6 @@ void MainFrame::init_tabpanel() {
     });
 
     if (wxGetApp().is_editor()) {
-        m_webview         = new WebViewPanel(m_tabpanel);
-        Bind(EVT_LOAD_URL, [this](wxCommandEvent &evt) {
-            wxString url = evt.GetString();
-            select_tab(MainFrame::tpHome);
-            m_webview->load_url(url);
-        });
-        m_tabpanel->AddPage(m_webview, "", "tab_home_active", "tab_home_active", false);
         m_param_panel = new ParamsPanel(m_tabpanel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBK_LEFT | wxTAB_TRAVERSAL);
       
     }
@@ -3312,7 +3287,6 @@ void MainFrame::set_max_recent_count(int max)
         }
         wxGetApp().app_config->set_recent_projects(recent_projects);
         wxGetApp().app_config->save();
-        m_webview->SendRecentList(-1);
 
         // wcp 订阅
         json data;
@@ -3848,7 +3822,6 @@ void MainFrame::add_to_recent_projects(const wxString& filename)
             recent_projects.push_back(into_u8(m_recent_projects.GetHistoryFile(i)));
         }
         wxGetApp().app_config->set_recent_projects(recent_projects);
-        m_webview->SendRecentList(0);
 
         // wcp 订阅
         json data;
@@ -4000,7 +3973,6 @@ void MainFrame::open_recent_project(size_t file_id, wxString const & filename)
                 recent_projects.push_back(into_u8(m_recent_projects.GetHistoryFile(i)));
             }
             wxGetApp().app_config->set_recent_projects(recent_projects);
-            m_webview->SendRecentList(-1);
 
             // wcp 订阅
             json data;
@@ -4054,20 +4026,11 @@ void MainFrame::remove_recent_project(size_t file_id, wxString const &filename)
         recent_projects.push_back(into_u8(m_recent_projects.GetHistoryFile(i)));
     }
     wxGetApp().app_config->set_recent_projects(recent_projects);
-    m_webview->SendRecentList(-1);
 
     // wcp 订阅
     json data;
     wxGetApp().mainframe->get_recent_projects(data, INT_MAX);
     wxGetApp().recent_file_notify(data);
-}
-
-void MainFrame::load_url(wxString url)
-{
-    BOOST_LOG_TRIVIAL(trace) << "load_url:" << url;
-    auto evt = new wxCommandEvent(EVT_LOAD_URL, this->GetId());
-    evt->SetString(url);
-    wxQueueEvent(this, evt);
 }
 
 void MainFrame::load_printer_url(wxString url, wxString apikey)
@@ -4102,10 +4065,6 @@ void MainFrame::load_printer_url()
 void MainFrame::reload_gateway_pages()
 {
     const auto gateway_service = wxGetApp().gateway_service();
-    wxString   home_url        = gateway_service ? wxString::FromUTF8(gateway_service->web_url("home_page")) : wxString{};
-    if (m_webview != nullptr && !home_url.empty())
-        m_webview->load_url(home_url);
-
     wxString device_url = gateway_service ? wxString::FromUTF8(gateway_service->web_url("device_control")) : wxString{};
     if (!device_url.empty())
         load_printer_url(device_url);
@@ -4113,18 +4072,6 @@ void MainFrame::reload_gateway_pages()
 
 bool MainFrame::is_printer_view() const { return m_tabpanel->GetSelection() == TabPosition::tpMonitor; }
 
-
-void MainFrame::refresh_plugin_tips()
-{
-    if (m_webview != nullptr)
-        m_webview->ShowNetpluginTip();
-}
-
-void MainFrame::RunScript(wxString js)
-{
-    if (m_webview != nullptr)
-        m_webview->RunScript(js);
-}
 
 void MainFrame::NotifyActivateChange(bool active)
 {

@@ -209,15 +209,14 @@ public:
     //BBS GUI refactor
     enum TabPosition
     {
-        tpHome          = 0,
-        tp3DEditor      = 1,
-        tpPreview       = 2,
-        tpMonitor       = 3,
-        tpMultiDevice   = 4,
-        tpProject       = 5,
-        tpCalibration   = 6,
-        tpAuxiliary     = 7,
-        toDebugTool     = 8,
+        tp3DEditor      = 0,
+        tpPreview       = 1,
+        tpMonitor       = 2,
+        tpMultiDevice   = 3,
+        tpProject       = 4,
+        tpCalibration   = 5,
+        tpAuxiliary     = 6,
+        toDebugTool     = 7,
     };
 
     //BBS: add slice&&print status update logic
@@ -355,13 +354,10 @@ public:
     void        technology_changed();
 
     //BBS
-    void        load_url(wxString url);
     void        load_printer_url(wxString url, wxString apikey = "");
     void        load_printer_url();
     void        reload_gateway_pages();
     bool        is_printer_view() const;
-    void        refresh_plugin_tips();
-    void        RunScript(wxString js);
 
     void        downloadOpenProject(const std::string& fileUrl, 
                                     const std::string& fileName, 
@@ -391,7 +387,6 @@ public:
     ProjectPanel*         m_project{ nullptr };
 
     CalibrationPanel*     m_calibration{ nullptr };
-    WebViewPanel*         m_webview { nullptr };
     PrinterWebView*       m_printer_view{nullptr};
     wxLogWindow*          m_log_window { nullptr };
     // BBS

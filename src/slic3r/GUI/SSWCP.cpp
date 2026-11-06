@@ -5543,7 +5543,8 @@ std::unordered_map<std::string, std::shared_ptr<SSWCP_UserLogin_Instance::Subscr
 std::mutex SSWCP::m_file_size_mutex;
 
 std::unordered_map<std::string, int> SSWCP::m_tab_map = {
-    {"Home", MainFrame::TabPosition::tpHome},
+    // The Home tab was removed; web pages asking for it land on Prepare.
+    {"Home", MainFrame::TabPosition::tp3DEditor},
     {"3DEditor", MainFrame::TabPosition::tp3DEditor},
     {"Preview", MainFrame::TabPosition::tpPreview},
     {"Monitor", MainFrame::TabPosition::tpMonitor},
