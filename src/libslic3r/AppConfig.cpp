@@ -178,9 +178,6 @@ void AppConfig::set_defaults()
 
         if (get("use_inches").empty())
             set("use_inches", "0");
-
-        if (get("default_page").empty())
-            set("default_page", "0");
     }
     else {
 #ifdef _WIN32

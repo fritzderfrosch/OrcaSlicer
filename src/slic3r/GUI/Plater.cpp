@@ -9212,7 +9212,7 @@ void Sidebar::apply_nozzle_sync_result(bool got_machine_info, std::string machin
 {
     if (!got_machine_info) {
         MessageDialog dlg(wxGetApp().mainframe,
-                          _L("Printer not connected. Please go to the home page or the device page to connect the printer."),
+                          _L("Printer not connected. Please go to the device page to connect the printer."),
                           _L("Note"), wxOK);
         dlg.ShowModal();
         return;
@@ -20257,7 +20257,7 @@ void Plater::reset_with_confirm()
                                             .ShowModal() == wxID_YES) {
         reset();
         // BBS: jump to plater panel
-        wxGetApp().mainframe->select_tab(size_t(0));
+        wxGetApp().mainframe->select_tab(size_t(MainFrame::tp3DEditor));
     }
 }
 

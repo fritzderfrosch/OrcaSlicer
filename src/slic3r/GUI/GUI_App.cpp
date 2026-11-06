@@ -1101,7 +1101,7 @@ void GUI_App::post_init()
         }
 //#endif
         // A URL open already in flight loads its own project and has already selected the 3D
-        // view. Sending the user to the home page and starting a blank project would undo both.
+        // view. Starting a blank project would undo that.
         // On macOS the URL arrives through MacOpenURL after launch, so it is never visible in
         // init_params->input_files and switch_to_3d above cannot account for it. This mirrors
         // what switch_to_3d already does on platforms that receive the URL as a launch argument.
@@ -1111,15 +1111,8 @@ void GUI_App::post_init()
                 mainframe->Thaw();
             });
         } else {
-            // Defer the final tab selection to after pending events are
-            // processed. During GL init, the PAGE_CHANGED handler posts
-            // EVT_GLVIEWTOOLBAR_3D which would undo a synchronous
-            // select_tab(0) and switch back to the Prepare tab.
+            // The Prepare tab is already selected; thaw once pending events are processed.
             CallAfter([this] {
-                if (is_editor() && app_config->get("default_page") != "1")
-                    mainframe->select_tab(size_t(0));
-                else if (app_config->get("default_page") == "1")
-                    mainframe->select_tab(size_t(1));
                 mainframe->Thaw();
             });
             plater_->trigger_restore_project(1);
@@ -1203,11 +1196,6 @@ void GUI_App::post_init()
         });
         m_agent->start_discovery(true, false);
     }
-
-    //update the plugin tips
-    CallAfter([this] {
-            mainframe->refresh_plugin_tips();
-        });
 
     // update hms info
     CallAfter([this] {
@@ -1746,8 +1734,6 @@ void GUI_App::restart_networking()
             this->handle_http_error(status, body);
         });
         m_agent->start_discovery(true, false);
-        if (mainframe)
-            mainframe->refresh_plugin_tips();
         if (plater_)
             plater_->get_notification_manager()->bbl_close_plugin_install_notification();
 
@@ -2944,14 +2930,14 @@ bool GUI_App::on_init_inner()
     mainframe = new MainFrame();
     profiler.mark("mainframe construction");
 
-    // hide settings tabs after first Layout
-    if (is_editor()) {
-        mainframe->select_tab(size_t(0));
-    }
-
     sidebar().obj_list()->init();
     //sidebar().aux_list()->init_auxiliary();
     mainframe->m_project->init_auxiliary();
+
+    // hide settings tabs after first Layout
+    if (is_editor()) {
+        mainframe->select_tab(size_t(MainFrame::tp3DEditor));
+    }
 
 //     update_mode(); // !!! do that later
     SetTopWindow(mainframe);
@@ -3972,7 +3958,6 @@ void GUI_App::ShowUserGuide() {
 if (res) {
             load_current_presets();
             update_publish_status();
-            mainframe->refresh_plugin_tips();
 
             sync_gateway_region_after_wizard(locale_before_wizard);
             // BBS: remove SLA related message
@@ -4277,20 +4262,8 @@ void GUI_App::request_login(bool show_user_info)
 
 void GUI_App::get_login_info()
 {
-    if (m_agent) {
-        if (m_agent->is_user_login()) {
-            std::string login_cmd = m_agent->build_login_cmd();
-            wxString strJS = wxString::Format("window.postMessage(%s)", login_cmd);
-            GUI::wxGetApp().run_script(strJS);
-        }
-        else {
-            m_agent->user_logout();
-            std::string logout_cmd = m_agent->build_logout_cmd();
-            wxString strJS = wxString::Format("window.postMessage(%s)", logout_cmd);
-            GUI::wxGetApp().run_script(strJS);
-        }
-        mainframe->m_webview->SetLoginPanelVisibility(true);
-    }
+    if (m_agent && !m_agent->is_user_login())
+        m_agent->user_logout();
 }
 
 bool GUI_App::is_user_login()
@@ -4406,13 +4379,6 @@ std::string GUI_App::handle_web_request(std::string cmd)
             }
             else if (command_str.compare("homepage_openproject") == 0) {
                 this->request_open_project({});
-            }
-            else if (command_str.compare("get_recent_projects") == 0) {
-                if (mainframe) {
-                    if (mainframe->m_webview) {
-                        mainframe->m_webview->SendRecentList(INT_MAX);
-                    }
-                }
             }
             // else if (command_str.compare("modelmall_model_advise_get") == 0) {
             //     if (mainframe && this->app_config->get("staff_pick_switch") == "true") {
@@ -6163,11 +6129,6 @@ void GUI_App::stop_page_http_server()
     m_page_http_server.stop();
 }
 
-void GUI_App::switch_staff_pick(bool on)
-{
-    mainframe->m_webview->SendDesignStaffpick(on);
-}
-
 bool GUI_App::switch_language()
 {
     if (select_language()) {
@@ -6594,7 +6555,6 @@ void GUI_App::update_mode()
         mainframe->m_param_dialog->panel()->update_mode();
     if (mainframe->m_printer_view)
         mainframe->m_printer_view->update_mode();
-    mainframe->m_webview->update_mode();
 
 #ifdef _MSW_DARK_MODE
     if (!wxGetApp().tabs_as_menu())
@@ -6612,7 +6572,6 @@ void GUI_App::update_mode()
 }
 
 void GUI_App::update_internal_development() {
-    mainframe->m_webview->update_mode();
     if (mainframe->m_printer_view)
         mainframe->m_printer_view->update_mode();
 }
@@ -7244,12 +7203,6 @@ DownloadManager* GUI_App::download_manager()
     return m_download_manager;
 }
 
-void GUI_App::load_url(wxString url)
-{
-    if (mainframe)
-        return mainframe->load_url(url);
-}
-
 void GUI_App::open_mall_page_dialog()
 {
     std::string host_url;
@@ -7364,12 +7317,6 @@ void GUI_App::remove_mall_system_dialog()
         m_mall_publish_dialog->Destroy();
         delete m_mall_publish_dialog;
     }
-}
-
-void GUI_App::run_script(wxString js)
-{
-    if (mainframe)
-        return mainframe->RunScript(js);
 }
 
 Notebook* GUI_App::tab_panel() const
@@ -7495,7 +7442,6 @@ bool GUI_App::run_wizard(ConfigWizard::RunReason reason, ConfigWizard::StartPage
         load_current_presets();
         wxGetApp().sidebar().update_nozzle_settings();
         update_publish_status();
-        mainframe->refresh_plugin_tips();
         sync_gateway_region_after_wizard(locale_before_wizard);
         // BBS: remove SLA related message
     }
